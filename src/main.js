@@ -20,7 +20,7 @@ const createWindow = () => {
   });
 
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
-  mainWindow.webContents.openDevTools(); 
+  // mainWindow.webContents.openDevTools(); 
 };
 
 app.whenReady().then(() => {
@@ -50,12 +50,18 @@ wss.on("connection", (ws) => {
       console.log("Received message:", decodedMessage);
       ws.send("Hello from Electron!");
       startScrcpy(ws);
-      simulateTap(500, 500);
-      togglePower
+    
     } else if (decodedMessage === 'stop') {
       stopScrcpy();
       console.log("The Screening has stopped");
-    } else {
+      
+    }
+    else if(decodedMessage=== 'mouse-event')
+      {
+        stopScrcpy()
+        startScrcpymouse()
+      }
+    else {
       console.log("Received non-buffer message:", message);
     }
   });
@@ -68,6 +74,21 @@ wss.on("connection", (ws) => {
 
 function startScrcpy(ws) {
   scrcpyProcess = spawn("scrcpy", ["-d", "--video-codec=h265", "--max-size=1920", "--max-fps=60", "--no-audio"]);
+
+  scrcpyProcess.stdout.on("data", (data) => {
+    console.log("scrcpy stdout:", data.toString());
+  });
+
+  scrcpyProcess.stderr.on("data", (data) => {
+    console.error(`scrcpy stderr: ${data}`);
+  });
+
+  scrcpyProcess.on("close", (code) => {
+    console.log(`scrcpy process exited with code ${code}`);
+  });
+}
+function startScrcpymouse(ws) {
+  scrcpyProcess = spawn("scrcpy", ["-d","--otg", "--video-codec=h265", "--max-size=1920", "--max-fps=60", "--no-audio"]);
 
   scrcpyProcess.stdout.on("data", (data) => {
     console.log("scrcpy stdout:", data.toString());
@@ -96,25 +117,7 @@ function sendAdbCommand(command) {
   });
 }
 
-function simulateTap(x, y) {
-  const command = `adb shell input tap ${x} ${y}`;
-  sendAdbCommand(command);
-}
 
-function simulateSwipe(x1, y1, x2, y2, duration = 300) {
-  const command = `adb shell input swipe ${x1} ${y1} ${x2} ${y2} ${duration}`;
-  sendAdbCommand(command);
-}
-
-function pressBackButton() {
-  const command = `adb shell input keyevent KEYCODE_BACK`;
-  sendAdbCommand(command);
-}
-
-function togglePower() {
-  const command = `adb shell input keyevent KEYCODE_POWER`;
-  sendAdbCommand(command);
-}
 
 function stopScrcpy() {
   if (scrcpyProcess) {
